@@ -27,6 +27,13 @@ The server exposes:
 - A REST endpoint for quote calculation (`POST /quote`)
 - REST endpoints for market listing and detail
 
+## 🎥 Watch the Demo
+
+Watch the full demo video here:
+
+[Click to watch the demo](https://github.com/user-attachments/assets/578d93d1-99e5-4018-8e85-ea9bc8339a20)
+
+
 ### Mixed data transport (WebSocket + polling)
 
 Polymarket provides a WebSocket API for real-time order book updates, which I use directly, subscribing to token IDs per market and applying incremental price change events on top of snapshots.
