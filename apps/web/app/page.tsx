@@ -25,8 +25,8 @@ export default async function MarketsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {markets.map((market) => {
-            const noPrice = (1 - market.yesPrice).toFixed(2);
-            const yesDisplay = market.yesPrice.toFixed(2);
+            const yesDisplay = market.yesPrice !== null ? market.yesPrice.toFixed(2) : null;
+            const noDisplay = market.yesPrice !== null ? (1 - market.yesPrice).toFixed(2) : null;
             return (
               <Link
                 key={market.id}
@@ -36,14 +36,13 @@ export default async function MarketsPage() {
                 <p className="text-sm font-medium leading-snug line-clamp-2 mb-4">
                   {market.title}
                 </p>
-                {/* TODO: add description too */}
                 <div className="flex items-end gap-x-4">
                   <div>
                     <p className="text-xs text-foreground/40 mb-0.5 uppercase tracking-wider">
                       YES
                     </p>
                     <p className="font-mono text-base font-medium text-bid">
-                      ${yesDisplay}
+                      {yesDisplay !== null ? `$${yesDisplay}` : <span className="text-foreground/20">—</span>}
                     </p>
                   </div>
                   <div>
@@ -51,7 +50,7 @@ export default async function MarketsPage() {
                       NO
                     </p>
                     <p className="font-mono text-base font-medium text-ask">
-                      ${noPrice}
+                      {noDisplay !== null ? `$${noDisplay}` : <span className="text-foreground/20">—</span>}
                     </p>
                   </div>
                 </div>

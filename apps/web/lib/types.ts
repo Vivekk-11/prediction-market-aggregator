@@ -3,12 +3,12 @@ export interface MarketSummary {
   title: string;
   polymarketId: string | null;
   kalshiId: string | null;
-  yesPrice: number;
+  yesPrice: number | null;
 }
 
 export interface MarketDetail extends MarketSummary {
-  description: string;
-  tickSize: number;
+  aggregated: AggregatedBook | null;
+  venueStatus: { polymarket: VenueStatus | "N/A"; kalshi: VenueStatus | "N/A" } | null;
 }
 
 export interface AggregatedLevel {

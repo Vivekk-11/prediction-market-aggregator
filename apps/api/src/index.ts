@@ -284,12 +284,17 @@ const start = async () => {
   app.get("/health", async () => ({ status: "ok" }));
 
   app.get("/markets", async () => {
-    return MARKETS.map((m) => ({
-      id: m.id,
-      title: m.title,
-      hasPolymarket: !!m.polymarket,
-      hasKalshi: !!m.kalshi,
-    }));
+    return MARKETS.map((m) => {
+      const state = marketStates.get(m.id);
+      const yesPrice = state?.aggregated.bids[0]?.price ?? null;
+      return {
+        id: m.id,
+        title: m.title,
+        polymarketId: m.polymarket?.conditionId ?? null,
+        kalshiId: m.kalshi?.ticker ?? null,
+        yesPrice,
+      };
+    });
   });
 
   app.get("/markets/:id", async (request, reply) => {
@@ -298,9 +303,14 @@ const start = async () => {
     if (!config) return reply.status(404).send({ error: "Market not found" });
 
     const state = marketStates.get(id);
+    const yesPrice = state?.aggregated.bids[0]?.price ?? null;
 
     return {
-      ...config,
+      id: config.id,
+      title: config.title,
+      polymarketId: config.polymarket?.conditionId ?? null,
+      kalshiId: config.kalshi?.ticker ?? null,
+      yesPrice,
       aggregated: state?.aggregated ?? null,
       venueStatus: state ? getVenueStatus(state) : null,
     };
