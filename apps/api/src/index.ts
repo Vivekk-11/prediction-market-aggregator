@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import websocket from "@fastify/websocket";
+import websocket, { WebSocket } from "@fastify/websocket";
 import cors from "@fastify/cors";
 
 // TODO: We’ll fix formatting later
@@ -34,9 +34,56 @@ const start = async () => {
     kalshi: VenueBook;
     aggregated: AggregatedBook;
     interval?: NodeJS.Timeout;
+    dirty: boolean;
+    subscribers: Set<WebSocket>;
+
+    polymarketLastUpdate: number;
+    kalshiLastUpdate: number;
+
+    polymarketStale: boolean;
+    kalshiStale: boolean;
   };
 
   const marketStates = new Map<string, MarketState>();
+
+  setInterval(() => {
+    for (const state of marketStates.values()) {
+      if (!state.dirty) continue;
+
+      const STALE_THRESHOLD = 5000; // 5 seconds
+      const now = Date.now();
+
+      state.polymarketStale =
+        now - state.polymarketLastUpdate > STALE_THRESHOLD;
+
+      state.kalshiStale = now - state.kalshiLastUpdate > STALE_THRESHOLD;
+
+      const pmBook = state.polymarketStale
+        ? { bids: [], asks: [] }
+        : state.polymarket;
+
+      const kalshiBook = state.kalshiStale
+        ? { bids: [], asks: [] }
+        : state.kalshi;
+
+      state.aggregated = aggregate(pmBook, kalshiBook);
+
+      const payload = JSON.stringify({
+        type: "book",
+        data: state.aggregated,
+        venueStatus: {
+          polymarket: state.polymarketStale ? "Stale" : "Live", // TODO: use enums
+          kalshi: state.kalshiStale ? "Stale" : "Live", // TODO: use enums
+        },
+      });
+
+      for (const ws of state.subscribers) {
+        ws.send(payload);
+      }
+
+      state.dirty = false;
+    }
+  }, 100);
 
   function createFakeBook(): VenueBook {
     return {
@@ -142,10 +189,17 @@ const start = async () => {
             const kalshi = createFakeBook();
             const aggregated = aggregate(polymarket, kalshi);
 
+            const now = Date.now();
             marketStates.set(marketId, {
               polymarket,
               kalshi,
               aggregated,
+              dirty: false,
+              subscribers: new Set(),
+              polymarketLastUpdate: now,
+              kalshiLastUpdate: now,
+              polymarketStale: false,
+              kalshiStale: false,
             });
           }
 
@@ -158,21 +212,24 @@ const start = async () => {
             }),
           );
 
+          state.subscribers.add(socket);
+
           state.interval = setInterval(() => {
             state.polymarket.asks[0].size += Math.floor(Math.random() * 10 - 5);
+            state.polymarketLastUpdate = Date.now();
 
-            state.aggregated = aggregate(state.polymarket, state.kalshi);
+            state.kalshi.bids[0].size += Math.floor(Math.random() * 10 - 5);
+            state.kalshiLastUpdate = Date.now();
 
-            socket.send(
-              JSON.stringify({
-                type: "book",
-                data: state.aggregated,
-              }),
-            );
+            state.dirty = true;
           }, 1000);
 
           socket.on("close", () => {
-            if (state.interval) clearInterval(state.interval);
+            state.subscribers.delete(socket);
+            if (state.subscribers.size === 0) {
+              if (state.interval) clearInterval(state.interval);
+              marketStates.delete(marketId);
+            }
           });
         }
       } catch (err) {
